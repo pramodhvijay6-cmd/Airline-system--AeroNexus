@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: airline-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: airline_db
+      MYSQL_USER: airline_user
+      MYSQL_PASSWORD: airline_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - airline-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: airline-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - airline-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: airline-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/airline_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=airline_user
+      - SPRING_DATASOURCE_PASSWORD=airline_password
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - JWT_SECRET=5J2k9sD8f3hK1l4sJ6hG9f8d7s6a5p4o3i2u1yT7r6e5w4q3Q2w1E3r4T5y6U7i8O9p0
+      - JWT_EXPIRATION=86400000
+      - JWT_REFRESH_EXPIRATION=604800000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - airline-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    container_name: airline-frontend
+    depends_on:
+      - backend
+    networks:
+      - airline-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: airline-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - airline-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  airline-network:
+    driver: bridge

@@ -1,0 +1,26 @@
+# Stage 1: Build
+FROM maven:3.9.6-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY pom.xml .
+COPY airline-common/pom.xml airline-common/
+COPY airline-domain/pom.xml airline-domain/
+COPY airline-service/pom.xml airline-service/
+COPY airline-web/pom.xml airline-web/
+
+# Download dependencies offline to cache them
+RUN mvn dependency:go-offline -B
+
+COPY airline-common/src airline-common/src
+COPY airline-domain/src airline-domain/src
+COPY airline-service/src airline-service/src
+COPY airline-web/src airline-web/src
+
+# Build the project
+RUN mvn clean package -DskipTests
+
+# Stage 2: Runtime
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/airline-web/target/airline-web-1.0.0-SNAPSHOT.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
