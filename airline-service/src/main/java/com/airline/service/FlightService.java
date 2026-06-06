@@ -166,7 +166,7 @@ public class FlightService {
         // 1. Create route if not exists
         Route route = routeRepository.findByOriginAndDestination(normOrigin, normDestination)
                 .orElseGet(() -> {
-                    int distance = 300 + (int)(Math.random() * 4500);
+                    int distance = estimateDistanceInMiles(normOrigin, normDestination);
                     int duration = (int)(distance / 8.0) + 40;
                     Route newRoute = Route.builder()
                             .origin(normOrigin)
@@ -294,5 +294,45 @@ public class FlightService {
                         (int) bookedSeats
                 ))
                 .build();
+    }
+
+    private int estimateDistanceInMiles(String origin, String destination) {
+        String routeKey = origin + "-" + destination;
+        
+        java.util.Map<String, Integer> exactDistances = new java.util.HashMap<>();
+        exactDistances.put("MAA-HYD", 320);
+        exactDistances.put("HYD-MAA", 320);
+        exactDistances.put("MAA-BLR", 180);
+        exactDistances.put("BLR-MAA", 180);
+        exactDistances.put("BLR-HYD", 310);
+        exactDistances.put("HYD-BLR", 310);
+        exactDistances.put("MAA-CCU", 850);
+        exactDistances.put("CCU-MAA", 850);
+        exactDistances.put("DEL-HYD", 780);
+        exactDistances.put("HYD-DEL", 780);
+        exactDistances.put("BOM-HYD", 385);
+        exactDistances.put("HYD-BOM", 385);
+        
+        if (exactDistances.containsKey(routeKey)) {
+            return exactDistances.get(routeKey);
+        }
+        
+        java.util.Set<String> indianAirports = java.util.Set.of("DEL", "BOM", "MAA", "BLR", "HYD", "CCU", "GOI", "COK", "PNQ", "AMD", "JAI", "LKO");
+        java.util.Set<String> usAirports = java.util.Set.of("JFK", "LAX", "ORD", "DFW", "MIA", "SFO", "ATL", "SEA", "BOS", "DEN");
+        
+        boolean originIndia = indianAirports.contains(origin);
+        boolean destIndia = indianAirports.contains(destination);
+        boolean originUS = usAirports.contains(origin);
+        boolean destUS = usAirports.contains(destination);
+        
+        if (originIndia && destIndia) {
+            return 300 + (int)(Math.random() * 500); // 300 to 800 miles
+        } else if (originUS && destUS) {
+            return 800 + (int)(Math.random() * 1500); // 800 to 2300 miles
+        } else if (originIndia || destIndia) {
+            return 3000 + (int)(Math.random() * 2000); // 3000 to 5000 miles
+        } else {
+            return 1000 + (int)(Math.random() * 3000); // 1000 to 4000 miles
+        }
     }
 }
